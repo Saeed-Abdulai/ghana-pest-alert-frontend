@@ -428,32 +428,60 @@ export async function analyzePestWithGPT(
   }
 }
 
-
 // ============================================================================
 // SMS NOTIFICATION SERVICES
 // ============================================================================
 
 /**
-* Send SMS to a single farmer (TEMP: no backend yet)
-* For now, we only return a success-like response so the UI does not crash.
-*/
-export async function sendSingleSMS(phone: string, message: string): Promise<SMSResponse | null> {
- try {
-   // No Edge Function call here.
-   // Later, we will connect this to your real backend (Node/Python/Twilio).
-   return {
-     success: true,
-     message: 'SMS sending is not configured yet. (Backend/Twilio pending)',
-   } as any;
- } catch (error) {
-   console.error('SMS error:', error);
-   return null;
- }
+ * Format any Ghana phone number to E.164 (+233XXXXXXXXX) before sending to Twilio.
+ * This fixes numbers stored in the database without a country code.
+ *
+ * Examples:
+ *   0205551234     ->  +233205551234   (local format with leading 0 — most common)
+ *   233205551234   ->  +233205551234   (country code present but missing the +)
+ *   +233205551234  ->  +233205551234   (already correct — no change made)
+ *   020 555 1234   ->  +233205551234   (strips spaces automatically)
+ *   020-555-1234   ->  +233205551234   (strips dashes automatically)
+ */
+function formatGhanaPhone(phone: string): string {
+  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+  if (cleaned.startsWith('+233') && cleaned.length === 13) return cleaned;
+  if (cleaned.startsWith('233') && cleaned.length === 12) return '+' + cleaned;
+  if (cleaned.startsWith('0') && cleaned.length === 10) return '+233' + cleaned.slice(1);
+  if (cleaned.length === 9 && !cleaned.startsWith('+')) return '+233' + cleaned;
+  return cleaned.startsWith('+') ? cleaned : '+' + cleaned;
 }
 
+/**
+ * Send SMS to a single farmer via the twilio-sms Supabase Edge Function.
+ * The phone number is automatically formatted to E.164 (+233...) before
+ * sending, so it works even if stored without a country code in the database.
+ */
+export async function sendSingleSMS(phone: string, message: string): Promise<SMSResponse | null> {
+  try {
+    const formattedPhone = formatGhanaPhone(phone);
+    const { data, error } = await supabase.functions.invoke('twilio-sms', {
+      body: {
+        action: 'send_single',
+        recipientPhone: formattedPhone,
+        message,
+      },
+    });
+    if (error) {
+      console.error('SMS error:', error);
+      return null;
+    }
+    return data as SMSResponse;
+  } catch (error) {
+    console.error('SMS error:', error);
+    return null;
+  }
+}
 
 /**
- * Send bulk SMS to multiple farmers (TEMP: no backend yet)
+ * Send bulk SMS to multiple farmers via the twilio-sms Supabase Edge Function.
+ * All phone numbers are automatically formatted to E.164 (+233...) before
+ * sending, so numbers stored without country codes still work correctly.
  */
 export async function sendBulkSMS(
   recipients: Array<{ phone: string; name: string; farmerId: string }>,
@@ -461,18 +489,29 @@ export async function sendBulkSMS(
   alertId?: string
 ): Promise<SMSResponse | null> {
   try {
-    // No Edge Function call here.
-    // Later, we will connect this to your real backend (Node/Python/Twilio).
-    return {
-      success: true,
-      message: `Bulk SMS is not configured yet. Intended recipients: ${recipients.length}. (Backend/Twilio pending)`,
-    } as any;
+    // Format every phone number to E.164 before sending
+    const formattedRecipients = recipients.map(r => ({
+      ...r,
+      phone: formatGhanaPhone(r.phone),
+    }));
+    const { data, error } = await supabase.functions.invoke('twilio-sms', {
+      body: {
+        action: 'send_bulk',
+        recipients: formattedRecipients,
+        message,
+        alertId,
+      },
+    });
+    if (error) {
+      console.error('Bulk SMS error:', error);
+      return null;
+    }
+    return data as SMSResponse;
   } catch (error) {
     console.error('Bulk SMS error:', error);
     return null;
   }
 }
-
 
 // ============================================================================
 // NOTIFICATION SERVICES

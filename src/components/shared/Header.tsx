@@ -72,7 +72,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, isSidebarOpen }) => {
 
   const getRoleDisplay = (role: string) => {
     switch (role) {
-      case 'admin': return 'Administrator';
+      case 'admin': return 'Agricultural Systems Coordinator';
       case 'extension_officer': return 'Extension Officer';
       case 'farmer': return 'Farmer';
       default: return role;

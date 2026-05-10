@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   AlertTriangle, Bell, Leaf, MapPin,
   Shield, Clock, ChevronRight, Phone,
-  X, Loader2, RefreshCw
+  X, Loader2, RefreshCw, Globe
 } from 'lucide-react';
 import { alertsApi } from '@/services/backendApi';
 import { useAuthStore } from '@/store/authStore';
@@ -30,17 +30,49 @@ const FarmerDashboard: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ALERT FILTERING — Region AND Crop logic
+  //
+  // An alert is shown to this farmer if ANY of these is true:
+  //   1. is_national_alert === true  →  every farmer sees it regardless of profile
+  //   2. alert.affected_regions is empty  →  treat as all-regions
+  //      AND alert.affected_crops is empty  →  treat as all-crops
+  //   3. The farmer's region is in alert.affected_regions
+  //      AND at least one of the farmer's crops overlaps with alert.affected_crops
+  //
+  // This prevents a tomato farmer in Volta from seeing a maize-only alert in Volta.
+  // Both region AND crop must match for a targeted alert.
+  // ─────────────────────────────────────────────────────────────────────────
+  const farmerRegion: string = user?.region || '';
+  // primary_crops stored on the farmer profile (from farmers table via user object)
+  const farmerCrops: string[] = (user as any)?.primary_crops || [];
+
   const publishedAlerts = alerts.filter(a => {
     if (a.status !== 'published') return false;
-  
-    // Show all alerts if no region restrictions set
-    if (!a.affected_regions || a.affected_regions.length === 0) return true;
-  
-    // Show if farmer has no region (show everything)
-    if (!user?.region) return true;
-  
-    // Show if farmer's region is in affected regions
-    return a.affected_regions.includes(user.region);
+
+    // Condition 1: National alert — always show to everyone
+    if (a.is_national_alert) return true;
+
+    // Condition 2: No region restriction AND no crop restriction — show to all
+    const noRegionRestriction = !a.affected_regions || a.affected_regions.length === 0;
+    const noCropRestriction = !a.affected_crops || a.affected_crops.length === 0;
+    if (noRegionRestriction && noCropRestriction) return true;
+
+    // Condition 3: Check region match
+    const regionMatch =
+      !farmerRegion ||                                    // farmer has no region set
+      noRegionRestriction ||                              // alert has no region restriction
+      a.affected_regions.includes(farmerRegion);
+
+    // Condition 4: Check crop match
+    const cropMatch =
+      farmerCrops.length === 0 ||                        // farmer has no crops set
+      noCropRestriction ||                               // alert has no crop restriction
+      a.affected_crops.some((c: string) => farmerCrops.includes(c));  // at least one crop overlap
+
+    // BOTH must match
+    return regionMatch && cropMatch;
   });
 
   const getSeverityColor = (severity: string) => {
@@ -180,19 +212,29 @@ const FarmerDashboard: React.FC = () => {
                       alt={alert.pest_name}
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-3 left-3">
+                    <div className="absolute top-3 left-3 flex gap-2">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getSeverityColor(alert.severity)}`}>
                         {alert.severity.toUpperCase()}
                       </span>
+                      {alert.is_national_alert && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-600 text-white text-xs font-semibold rounded-full">
+                          <Globe className="w-3 h-3" /> National
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}
 
                 {!alert.image_url && (
-                  <div className="h-20 bg-gradient-to-r from-green-50 to-emerald-50 flex items-center px-4">
+                  <div className="h-20 bg-gradient-to-r from-green-50 to-emerald-50 flex items-center px-4 gap-2">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getSeverityColor(alert.severity)}`}>
                       {alert.severity.toUpperCase()}
                     </span>
+                    {alert.is_national_alert && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-600 text-white text-xs font-semibold rounded-full">
+                        <Globe className="w-3 h-3" /> National
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -271,10 +313,15 @@ const FarmerDashboard: React.FC = () => {
                 >
                   <X className="w-5 h-5" />
                 </button>
-                <div className="absolute bottom-4 left-4">
+                <div className="absolute bottom-4 left-4 flex gap-2">
                   <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${getSeverityColor(selectedAlert.severity)}`}>
                     {selectedAlert.severity.toUpperCase()} SEVERITY
                   </span>
+                  {selectedAlert.is_national_alert && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white text-sm font-semibold rounded-full">
+                      <Globe className="w-4 h-4" /> National Alert
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -305,29 +352,35 @@ const FarmerDashboard: React.FC = () => {
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-2">Affected Regions</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {(selectedAlert.affected_regions || []).map((region: string, i: number) => (
-                      <span key={i} className="px-2 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">
-                        {region}
-                      </span>
-                    ))}
-                  </div>
+                  {selectedAlert.is_national_alert ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 text-sm rounded-full">
+                      <Globe className="w-3.5 h-3.5" /> All Regions
+                    </span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {(selectedAlert.affected_regions || []).map((region: string, i: number) => (
+                        <span key={i} className="px-2 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">
+                          {region}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Source info for external alerts */}
-{selectedAlert.source === 'external_source' && selectedAlert.source_organization && (
-  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-    <h4 className="text-sm font-semibold text-blue-800 mb-1">Source</h4>
-    <p className="text-sm text-blue-700">Organisation: {selectedAlert.source_organization}</p>
-    {selectedAlert.source_reference && (
-      <p className="text-xs text-blue-600 mt-1">Ref: {selectedAlert.source_reference}</p>
-    )}
-    {selectedAlert.source_date && (
-      <p className="text-xs text-blue-600">Date: {selectedAlert.source_date}</p>
-    )}
-  </div>
-)}
+              {selectedAlert.source === 'external_source' && selectedAlert.source_organization && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="text-sm font-semibold text-blue-800 mb-1">Source</h4>
+                  <p className="text-sm text-blue-700">Organisation: {selectedAlert.source_organization}</p>
+                  {selectedAlert.source_reference && (
+                    <p className="text-xs text-blue-600 mt-1">Ref: {selectedAlert.source_reference}</p>
+                  )}
+                  {selectedAlert.source_date && (
+                    <p className="text-xs text-blue-600">Date: {selectedAlert.source_date}</p>
+                  )}
+                </div>
+              )}
 
               {selectedAlert.symptoms && (
                 <div className="mb-4">

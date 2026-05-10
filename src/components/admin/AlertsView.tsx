@@ -56,7 +56,8 @@ const AlertsView: React.FC = () => {
     symptoms: '',
     preventive_measures: '',
     control_measures: '',
-    affected_regions: [] as string[]
+    affected_regions: [] as string[],
+    is_national_alert: false,
   });
 
   // External alert form
@@ -230,6 +231,8 @@ const AlertsView: React.FC = () => {
   };
 
   const toggleRegion = (region: string) => {
+    // Disabled when national alert is checked
+    if (formData.is_national_alert) return;
     setFormData(prev => ({
       ...prev,
       affected_regions: prev.affected_regions.includes(region)
@@ -247,11 +250,21 @@ const AlertsView: React.FC = () => {
     }));
   };
 
+  // Toggle national alert — clears region selections when enabled
+  const toggleNationalAlert = () => {
+    setFormData(prev => ({
+      ...prev,
+      is_national_alert: !prev.is_national_alert,
+      affected_regions: !prev.is_national_alert ? [] : prev.affected_regions,
+    }));
+  };
+
   const resetForm = () => {
     setFormData({
       title: '', pest_name: '', affected_crops: [],
       severity: 'medium', description: '', symptoms: '',
-      preventive_measures: '', control_measures: '', affected_regions: []
+      preventive_measures: '', control_measures: '', affected_regions: [],
+      is_national_alert: false,
     });
     removeImage();
   };
@@ -724,25 +737,37 @@ const AlertsView: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" />
               </div>
 
+              {/* External alert: ALL crops shown */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Affected Crops</label>
-                <div className="flex flex-wrap gap-2">
-                  {GHANA_CROPS.slice(0, 10).map(crop => (
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Affected Crops
+                  {externalFormData.affected_crops.length > 0 && (
+                    <span className="ml-2 text-xs text-green-600 font-normal">{externalFormData.affected_crops.length} selected</span>
+                  )}
+                </label>
+                <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto p-2 border border-gray-100 rounded-lg bg-gray-50">
+                  {GHANA_CROPS.map(crop => (
                     <button key={crop} type="button" onClick={() => toggleExternalCrop(crop)}
                       className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                        externalFormData.affected_crops.includes(crop) ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        externalFormData.affected_crops.includes(crop) ? 'bg-green-600 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:border-green-400'
                       }`}>{crop}</button>
                   ))}
                 </div>
               </div>
 
+              {/* External alert: ALL regions shown */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Affected Regions</label>
-                <div className="flex flex-wrap gap-2">
-                  {GHANA_REGIONS.slice(0, 8).map(region => (
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Affected Regions
+                  {externalFormData.affected_regions.length > 0 && (
+                    <span className="ml-2 text-xs text-blue-600 font-normal">{externalFormData.affected_regions.length} selected</span>
+                  )}
+                </label>
+                <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto p-2 border border-gray-100 rounded-lg bg-gray-50">
+                  {GHANA_REGIONS.map(region => (
                     <button key={region} type="button" onClick={() => toggleExternalRegion(region)}
                       className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                        externalFormData.affected_regions.includes(region) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        externalFormData.affected_regions.includes(region) ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:border-blue-400'
                       }`}>{region}</button>
                   ))}
                 </div>
@@ -844,25 +869,63 @@ const AlertsView: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" />
               </div>
 
+              {/* Manual alert: ALL crops shown, multi-select */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Affected Crops</label>
-                <div className="flex flex-wrap gap-2">
-                  {GHANA_CROPS.slice(0, 10).map(crop => (
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Affected Crops
+                  {formData.affected_crops.length > 0 && (
+                    <span className="ml-2 text-xs text-green-600 font-normal">{formData.affected_crops.length} selected</span>
+                  )}
+                </label>
+                <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto p-2 border border-gray-100 rounded-lg bg-gray-50">
+                  {GHANA_CROPS.map(crop => (
                     <button key={crop} type="button" onClick={() => toggleCrop(crop)}
                       className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                        formData.affected_crops.includes(crop) ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        formData.affected_crops.includes(crop) ? 'bg-green-600 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:border-green-400'
                       }`}>{crop}</button>
                   ))}
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Affected Regions</label>
-                <div className="flex flex-wrap gap-2">
-                  {GHANA_REGIONS.slice(0, 8).map(region => (
+              {/* ── NATIONAL ALERT TOGGLE ── */}
+              <div className="rounded-xl border-2 border-dashed border-purple-200 bg-purple-50 p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_national_alert}
+                    onChange={toggleNationalAlert}
+                    className="mt-0.5 w-5 h-5 text-purple-600 rounded focus:ring-purple-500 cursor-pointer"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-purple-600" />
+                      <span className="font-semibold text-purple-900">Send to All Regions (National Alert)</span>
+                    </div>
+                    <p className="text-sm text-purple-700 mt-1">
+                      When enabled, every registered farmer will receive this alert regardless of their region or crops.
+                      Use for urgent national pest threats or critical food security warnings.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Manual alert: ALL regions shown, multi-select, disabled when national */}
+              <div className={formData.is_national_alert ? 'opacity-40 pointer-events-none' : ''}>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Affected Regions
+                    {formData.is_national_alert ? (
+                      <span className="ml-2 text-xs text-purple-600 font-normal">— overridden by National Alert</span>
+                    ) : formData.affected_regions.length > 0 ? (
+                      <span className="ml-2 text-xs text-blue-600 font-normal">{formData.affected_regions.length} selected</span>
+                    ) : null}
+                  </label>
+                </div>
+                <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto p-2 border border-gray-100 rounded-lg bg-gray-50">
+                  {GHANA_REGIONS.map(region => (
                     <button key={region} type="button" onClick={() => toggleRegion(region)}
                       className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                        formData.affected_regions.includes(region) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        formData.affected_regions.includes(region) ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:border-blue-400'
                       }`}>{region}</button>
                   ))}
                 </div>
@@ -942,6 +1005,11 @@ const AlertsView: React.FC = () => {
                   {selectedAlert.status.toUpperCase()}
                 </span>
                 {getSourceBadge(selectedAlert.source)}
+                {selectedAlert.is_national_alert && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                    <Globe className="w-3 h-3" /> NATIONAL
+                  </span>
+                )}
               </div>
 
               <h2 className="text-xl font-bold text-gray-900 mb-2">{selectedAlert.title}</h2>
@@ -974,7 +1042,14 @@ const AlertsView: React.FC = () => {
               )}
 
               {/* Affected regions */}
-              {selectedAlert.affected_regions?.length > 0 && (
+              {selectedAlert.is_national_alert ? (
+                <div className="mb-4">
+                  <h4 className="font-semibold text-gray-700 mb-2">Affected Regions</h4>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded-full">
+                    <Globe className="w-3 h-3" /> All 17 Regions (National Alert)
+                  </span>
+                </div>
+              ) : selectedAlert.affected_regions?.length > 0 && (
                 <div className="mb-4">
                   <h4 className="font-semibold text-gray-700 mb-2">Affected Regions</h4>
                   <div className="flex flex-wrap gap-1">
@@ -1146,7 +1221,6 @@ const AlertsView: React.FC = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };

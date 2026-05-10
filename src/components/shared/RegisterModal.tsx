@@ -49,7 +49,8 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
   // Profile details
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [region, setRegion] = useState('');
+  // Multi-region support: farmer can select multiple farming regions
+  const [farmingRegions, setFarmingRegions] = useState<string[]>([]);
   const [district, setDistrict] = useState('');
   const [community, setCommunity] = useState('');
   
@@ -57,12 +58,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
   const [farmSize, setFarmSize] = useState('');
   const [selectedCrops, setSelectedCrops] = useState<string[]>([]);
   
-  
   // UI state
   const [localError, setLocalError] = useState('');
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  // const [requiresApproval, setRequiresApproval] = useState(false);
 
   // Auth store
   const { register, isLoading, error } = useAuthStore();
@@ -100,8 +99,8 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
         return false;
       }
 
-      if (!region) {
-        setLocalError('Please select your region');
+      if (farmingRegions.length === 0) {
+        setLocalError('Please select at least one farming region');
         return false;
       }
 
@@ -136,6 +135,12 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
     );
   };
 
+  // Toggle farming region selection (multi-select)
+  const toggleFarmingRegion = (r: string) => {
+    setFarmingRegions(prev =>
+      prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
+    );
+  };
 
   // Handle form submission
   const handleSubmit = async () => {
@@ -148,7 +153,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
         full_name: fullName,
         phone,
         role: 'farmer',
-        region,
+        // Primary region = first selected region (for users table backward compat)
+        region: farmingRegions[0] || '',
+        // All farming regions passed for the farmers table
+        farming_regions: farmingRegions,
         district,
         community,
         ...(selectedRole === 'farmer' && {
@@ -158,7 +166,6 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
       });
 
       if (result.success) {
-        // setRequiresApproval(result.requiresApproval || false);
         setSuccessMessage(result.message || 'Registration successful!');
         setStep('success');
       } else {
@@ -178,15 +185,14 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
     setConfirmPassword('');
     setFullName('');
     setPhone('');
-    setRegion('');
+    setFarmingRegions([]);
     setDistrict('');
     setCommunity('');
     setFarmSize('');
     setSelectedCrops([]);
-    setEmployeeId('');
-    setAssignedRegions([]);
     setLocalError('');
     setSuccessMessage('');
+    setRequiresApproval(false);
   };
 
   // Handle close
@@ -258,7 +264,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
           {step === 'role' && (
             <div className="space-y-4">
               <p className="text-gray-600 text-sm mb-4">
-              Create your Farmer account to receive pest alerts and recommendations:              :
+                Create your Farmer account to receive pest alerts and recommendations:
               </p>
               <button
                 onClick={() => setSelectedRole('farmer')}
@@ -285,7 +291,6 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
                 </div>
                 {selectedRole === 'farmer' && (
                   <div className="mt-3 p-2 bg-amber-50 rounded-lg">
-
                   </div>
                 )}
               </button>
@@ -354,183 +359,201 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
               </div>
             </div>
           )}
-{/* Step 3: Profile Details */}
-{step === 'profile' && (
-  <div className="space-y-4">
-    <div className="grid grid-cols-2 gap-4">
-      <div className="col-span-2">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Full Name
-        </label>
-        <div className="relative">
-          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder="Enter your full name"
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-          />
-        </div>
-      </div>
 
-      <div className="col-span-2">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Phone Number
-        </label>
-        <div className="relative">
-          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+233 or 0XX XXX XXXX"
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-          />
-        </div>
-      </div>
+          {/* Step 3: Profile Details */}
+          {step === 'profile' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Enter your full name"
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                    />
+                  </div>
+                </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Region
-        </label>
-        <select
-          value={region}
-          onChange={(e) => setRegion(e.target.value)}
-          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-        >
-          <option value="">Select Region</option>
-          {GHANA_REGIONS.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
-      </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+233 or 0XX XXX XXXX"
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                    />
+                  </div>
+                </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          District
-        </label>
-        <input
-          type="text"
-          value={district}
-          onChange={(e) => setDistrict(e.target.value)}
-          placeholder="Your district"
-          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-        />
-      </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    District
+                  </label>
+                  <input
+                    type="text"
+                    value={district}
+                    onChange={(e) => setDistrict(e.target.value)}
+                    placeholder="Your district"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                  />
+                </div>
 
-      <div className="col-span-2">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Community
-        </label>
-        <input
-          type="text"
-          value={community}
-          onChange={(e) => setCommunity(e.target.value)}
-          placeholder="Your community/town"
-          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-        />
-      </div>
-    </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Community
+                  </label>
+                  <input
+                    type="text"
+                    value={community}
+                    onChange={(e) => setCommunity(e.target.value)}
+                    placeholder="Your community/town"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                  />
+                </div>
+              </div>
 
-    {/* Farmer-specific fields */}
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Farm Size (hectares)
-      </label>
-      <input
-        type="number"
-        value={farmSize}
-        onChange={(e) => setFarmSize(e.target.value)}
-        placeholder="e.g., 2.5"
-        step="0.1"
-        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-      />
-    </div>
+              {/* Farmer-specific fields */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Farm Size (hectares)
+                </label>
+                <input
+                  type="number"
+                  value={farmSize}
+                  onChange={(e) => setFarmSize(e.target.value)}
+                  placeholder="e.g., 2.5"
+                  step="0.1"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                />
+              </div>
 
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Primary Crops (select at least one)
-      </label>
-      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-        {GHANA_CROPS.slice(0, 12).map((crop) => (
-          <button
-            key={crop}
-            type="button"
-            onClick={() => toggleCrop(crop)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              selectedCrops.includes(crop)
-                ? "bg-green-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            {crop}
-          </button>
-        ))}
-      </div>
-    </div>
-  </div>
-)}
-       {/* Step 4: Success */}
-{step === 'success' && (
-  <div className="text-center py-6">
-    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-      requiresApproval ? 'bg-amber-100' : 'bg-green-100'
-    }`}>
-      <CheckCircle className={`w-8 h-8 ${
-        requiresApproval ? 'text-amber-600' : 'text-green-600'
-      }`}/>
-    </div>
+              {/* ── FARMING REGIONS — multi-select, all 17 regions ── */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Farming Region(s)
+                    <span className="ml-1 text-xs font-normal text-gray-500">— select all that apply</span>
+                  </label>
+                  {farmingRegions.length > 0 && (
+                    <span className="text-xs text-blue-600 font-medium">
+                      {farmingRegions.length} selected
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mb-2">
+                  Select every region where you have farmland. You can select more than one.
+                </p>
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50">
+                  {GHANA_REGIONS.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => toggleFarmingRegion(r)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        farmingRegions.includes(r)
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-700 border border-gray-200 hover:border-blue-400'
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-    <h3 className="text-xl font-bold text-gray-900 mb-2">
-      {requiresApproval ? 'Registration Submitted!' : 'Registration Successful!'}
-    </h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Primary Crops (select at least one)
+                </label>
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                  {GHANA_CROPS.slice(0, 12).map((crop) => (
+                    <button
+                      key={crop}
+                      type="button"
+                      onClick={() => toggleCrop(crop)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        selectedCrops.includes(crop)
+                          ? "bg-green-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {crop}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
-    <p className="text-gray-600 mb-4">
-      {successMessage}
-    </p>
+          {/* Step 4: Success */}
+          {step === 'success' && (
+            <div className="text-center py-6">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                requiresApproval ? 'bg-amber-100' : 'bg-green-100'
+              }`}>
+                <CheckCircle className={`w-8 h-8 ${
+                  requiresApproval ? 'text-amber-600' : 'text-green-600'
+                }`}/>
+              </div>
 
-    {requiresApproval ? (
-      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg mb-6">
-        <p className="text-sm text-amber-800 font-medium mb-1">
-          ⏳ Pending Approval
-        </p>
-        <p className="text-sm text-amber-700">
-          Your registration is under review. An extension officer or admin will approve your application. You will be able to log in once approved.
-        </p>
-      </div>
-    ) : (
-      <div className="p-4 bg-green-50 border border-green-200 rounded-lg mb-6">
-        <p className="text-sm text-green-800">
-          Your account has been created. You can now log in.
-        </p>
-      </div>
-    )}
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                {requiresApproval ? 'Registration Submitted!' : 'Registration Successful!'}
+              </h3>
 
-    {!requiresApproval && (
-      <button
-        onClick={() => {
-          handleClose();
-          onSwitchToLogin();
-        }}
-        className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
-      >
-        Go to Login
-      </button>
-    )}
+              <p className="text-gray-600 mb-4">
+                {successMessage}
+              </p>
 
-    {requiresApproval && (
-      <button
-        onClick={handleClose}
-        className="w-full py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition-colors"
-      >
-        Close
-      </button>
-    )}
-  </div>
-  )}
+              {requiresApproval ? (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg mb-6">
+                  <p className="text-sm text-amber-800 font-medium mb-1">
+                    ⏳ Pending Approval
+                  </p>
+                  <p className="text-sm text-amber-700">
+                    Your registration is under review. An extension officer or admin will approve your application. You will be able to log in once approved.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg mb-6">
+                  <p className="text-sm text-green-800">
+                    Your account has been created. You can now log in.
+                  </p>
+                </div>
+              )}
+
+              {!requiresApproval && (
+                <button
+                  onClick={() => {
+                    handleClose();
+                    onSwitchToLogin();
+                  }}
+                  className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Go to Login
+                </button>
+              )}
+
+              {requiresApproval && (
+                <button
+                  onClick={handleClose}
+                  className="w-full py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition-colors"
+                >
+                  Close
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Navigation buttons */}
           {step !== 'success' && (

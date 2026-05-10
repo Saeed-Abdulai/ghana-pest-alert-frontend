@@ -195,7 +195,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   <button
     onClick={() => {
       const guide = `GHANA PEST ALERT SYSTEM - USER GUIDE\n\n` +
-        `ADMIN GUIDE:\n` +
+        `ASC (AGRICULTURAL SYSTEMS COORDINATOR) GUIDE:\n` +
         `• Dashboard: View real-time stats\n` +
         `• Create Alert: Manual alerts go to validation queue\n` +
         `• External Source: Publishes immediately\n` +
@@ -209,7 +209,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         `• Validation Queue: Review pending alerts\n` +
         `• Expand alert to see full details\n` +
         `• Edit Content: Modify before approving\n` +
-        `• Approve: Alert goes back to admin to publish\n` +
+        `• Approve: Alert goes back to ASC to publish\n` +
         `• Reject: Alert is rejected with reason\n\n` +
         `FARMER GUIDE:\n` +
         `• Dashboard shows alerts for your region\n` +
@@ -217,7 +217,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         `• Check symptoms and prevention measures\n` +
         `• Contact extension officer for help\n\n` +
         `CREDENTIALS:\n` +
-        `• Admin: admin@pestalert.gh / Admin2024\n` +
+        `• ASC: admin@pestalert.gh / Admin2024\n` +
         `• Officer: officer@pestalert.gh / Officer2024`;
       alert(guide);
     }}
